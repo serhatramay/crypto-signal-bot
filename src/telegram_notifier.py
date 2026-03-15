@@ -29,9 +29,9 @@ def send_message(text: str) -> bool:
 
 
 def format_signal(signal: dict) -> str:
-    """Sinyal mesajini formatlar."""
+    """Teknik sinyal mesajini formatlar."""
     direction = signal["direction"]
-    emoji = "\U0001f7e2" if direction == "LONG" else "\U0001f534"  # green/red circle
+    emoji = "\U0001f7e2" if direction == "LONG" else "\U0001f534"
     symbol = signal["symbol"]
     entry = signal["entry_price"]
     tp = signal["tp_price"]
@@ -43,31 +43,17 @@ def format_signal(signal: dict) -> str:
     details = signal["details"]
     now = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
-    # Guven bari
     filled = "\u2588" * score
     empty = "\u2591" * (MAX_SCORE - score)
     confidence_bar = filled + empty
 
-    # Gosterge detaylari
     macd_icon = "\u2705" if details.get("MACD") else "\u274c"
     bb_icon = "\u2705" if details.get("BB") else "\u274c"
     ema_icon = "\u2705" if details.get("EMA") else "\u274c"
     vol_icon = "\u2705" if details.get("VOL") else "\u274c"
     trend_icon = "\u2705" if details.get("TREND") else "\u274c"
 
-    # Fiyat formatlama
-    if entry >= 1000:
-        price_fmt = f"{entry:,.2f}"
-        tp_fmt = f"{tp:,.2f}"
-        sl_fmt = f"{sl:,.2f}"
-    elif entry >= 1:
-        price_fmt = f"{entry:.4f}"
-        tp_fmt = f"{tp:.4f}"
-        sl_fmt = f"{sl:.4f}"
-    else:
-        price_fmt = f"{entry:.6f}"
-        tp_fmt = f"{tp:.6f}"
-        sl_fmt = f"{sl:.6f}"
+    price_fmt, tp_fmt, sl_fmt = _format_prices(entry, tp, sl)
 
     tp_sign = "+" if direction == "LONG" else "-"
     sl_sign = "-" if direction == "LONG" else "+"
@@ -89,9 +75,64 @@ def format_signal(signal: dict) -> str:
     return text
 
 
+def format_momentum(signal: dict) -> str:
+    """Momentum alarm mesajini formatlar."""
+    direction = signal["direction"]
+    symbol = signal["symbol"]
+    price = signal["entry_price"]
+    price_before = signal["price_before"]
+    change_5m = signal["change_5m"]
+    change_10m = signal["change_10m"]
+    vol_spike = signal["vol_spike"]
+    now = datetime.now(timezone.utc).strftime("%H:%M UTC")
+
+    if direction == "PUMP":
+        emoji = "\U0001f680"  # roket
+        title = "ANI YUKSELIS"
+        arrow = "\u2b06\ufe0f"
+    else:
+        emoji = "\U0001f4a5"  # patlama
+        title = "ANI DUSUS"
+        arrow = "\u2b07\ufe0f"
+
+    price_fmt = _format_price(price)
+    before_fmt = _format_price(price_before)
+    vol_text = "\U0001f525 YUKSEK HACIM" if vol_spike else "\U0001f4ca Normal hacim"
+
+    text = (
+        f"{emoji} <b>{title} - {symbol}</b>\n"
+        f"\n"
+        f"{arrow} ${before_fmt} \u2192 ${price_fmt}\n"
+        f"\U0001f552 5dk: {change_5m:+.2f}%\n"
+        f"\U0001f553 10dk: {change_10m:+.2f}%\n"
+        f"{vol_text}\n"
+        f"\u23f0 {now}\n"
+        f"\n"
+        f"\u26a0\ufe0f <i>Bu finansal tavsiye de\u011fildir.</i>"
+    )
+    return text
+
+
+def _format_price(price: float) -> str:
+    if price >= 1000:
+        return f"{price:,.2f}"
+    elif price >= 1:
+        return f"{price:.4f}"
+    else:
+        return f"{price:.6f}"
+
+
+def _format_prices(entry, tp, sl):
+    fmt = _format_price
+    return fmt(entry), fmt(tp), fmt(sl)
+
+
 def send_signal(signal: dict) -> bool:
-    """Formatlı sinyal mesaji gonderir."""
-    text = format_signal(signal)
+    """Sinyal tipine gore formatlayip gonderir."""
+    if signal.get("type") == "momentum":
+        text = format_momentum(signal)
+    else:
+        text = format_signal(signal)
     return send_message(text)
 
 

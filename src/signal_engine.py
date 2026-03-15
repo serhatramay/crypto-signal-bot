@@ -5,6 +5,8 @@ from src.config import (
     RSI_LONG_THRESHOLD, RSI_SHORT_THRESHOLD,
     VOLUME_MULTIPLIER, MIN_SCORE,
     TP_MIN, TP_MAX, STOP_LOSS, DUPLICATE_WINDOW,
+    MOMENTUM_5M_THRESHOLD, MOMENTUM_10M_THRESHOLD,
+    MOMENTUM_VOLUME_SPIKE, MOMENTUM_DUPLICATE_WINDOW,
 )
 
 SIGNALS_FILE = os.path.join(os.path.dirname(__file__), "..", "signals_history.json")
@@ -25,13 +27,15 @@ def save_signal_history(history: list):
         json.dump(history, f, indent=2)
 
 
-def is_duplicate(symbol: str, direction: str, history: list) -> bool:
-    """Son 1 saat icinde ayni coin+yon icin sinyal var mi kontrol eder."""
+def is_duplicate(symbol: str, direction: str, history: list, signal_type: str = "technical") -> bool:
+    """Son belirli sure icinde ayni coin+yon icin sinyal var mi kontrol eder."""
     now = time.time()
+    window = MOMENTUM_DUPLICATE_WINDOW if signal_type == "momentum" else DUPLICATE_WINDOW
     for sig in history:
         if (sig["symbol"] == symbol
                 and sig["direction"] == direction
-                and now - sig["timestamp"] < DUPLICATE_WINDOW):
+                and sig.get("type", "technical") == signal_type
+                and now - sig["timestamp"] < window):
             return True
     return False
 
@@ -41,21 +45,18 @@ def evaluate_long(indicators: dict, trend: dict) -> dict:
     score = 0
     details = {}
 
-    # RSI < 35
     if indicators["rsi"] < RSI_LONG_THRESHOLD:
         score += 1
         details["RSI"] = True
     else:
         details["RSI"] = False
 
-    # MACD yukari kesisim
     if indicators["macd_cross_up"]:
         score += 1
         details["MACD"] = True
     else:
         details["MACD"] = False
 
-    # Bollinger alt banda temas (fiyat alt bandın %0.5 yakınında)
     bb_lower = indicators["bb_lower"]
     close = indicators["close"]
     if close <= bb_lower * 1.005:
@@ -64,21 +65,18 @@ def evaluate_long(indicators: dict, trend: dict) -> dict:
     else:
         details["BB"] = False
 
-    # EMA 9/21 kesisim
     if indicators["ema_cross_up"]:
         score += 1
         details["EMA"] = True
     else:
         details["EMA"] = False
 
-    # Hacim > 1.5x ortalama
     if indicators["volume"] > indicators["avg_volume"] * VOLUME_MULTIPLIER:
         score += 1
         details["VOL"] = True
     else:
         details["VOL"] = False
 
-    # 1h Trend filtresi (fiyat > EMA50)
     if trend["above_trend"]:
         score += 1
         details["TREND"] = True
@@ -93,21 +91,18 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
     score = 0
     details = {}
 
-    # RSI > 65
     if indicators["rsi"] > RSI_SHORT_THRESHOLD:
         score += 1
         details["RSI"] = True
     else:
         details["RSI"] = False
 
-    # MACD asagi kesisim
     if indicators["macd_cross_down"]:
         score += 1
         details["MACD"] = True
     else:
         details["MACD"] = False
 
-    # Bollinger ust banda temas
     bb_upper = indicators["bb_upper"]
     close = indicators["close"]
     if close >= bb_upper * 0.995:
@@ -116,21 +111,18 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
     else:
         details["BB"] = False
 
-    # EMA 9/21 asagi kesisim
     if indicators["ema_cross_down"]:
         score += 1
         details["EMA"] = True
     else:
         details["EMA"] = False
 
-    # Hacim > 1.5x ortalama
     if indicators["volume"] > indicators["avg_volume"] * VOLUME_MULTIPLIER:
         score += 1
         details["VOL"] = True
     else:
         details["VOL"] = False
 
-    # 1h Trend filtresi (fiyat < EMA50)
     if not trend["above_trend"]:
         score += 1
         details["TREND"] = True
@@ -142,7 +134,6 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
 
 def calculate_tp_sl(price: float, direction: str, score: int) -> dict:
     """Guven skoruna gore TP/SL hesaplar."""
-    # Skor yuksekse TP de yuksek
     tp_pct = TP_MIN + (TP_MAX - TP_MIN) * ((score - MIN_SCORE) / (6 - MIN_SCORE))
     sl_pct = STOP_LOSS
 
@@ -161,8 +152,83 @@ def calculate_tp_sl(price: float, direction: str, score: int) -> dict:
     }
 
 
+def detect_momentum(symbol: str, df_1m) -> list:
+    """1m mumlardan ani fiyat hareketi tespit eder."""
+    if len(df_1m) < 10:
+        return []
+
+    history = load_signal_history()
+    signals = []
+    current_price = df_1m["close"].iloc[-1]
+
+    # Son 5 dakikadaki degisim
+    price_5m_ago = df_1m["close"].iloc[-6] if len(df_1m) >= 6 else df_1m["close"].iloc[0]
+    change_5m = ((current_price - price_5m_ago) / price_5m_ago) * 100
+
+    # Son 10 dakikadaki degisim
+    price_10m_ago = df_1m["close"].iloc[-11] if len(df_1m) >= 11 else df_1m["close"].iloc[0]
+    change_10m = ((current_price - price_10m_ago) / price_10m_ago) * 100
+
+    # Hacim spike kontrolu
+    avg_vol = df_1m["volume"].mean()
+    recent_vol = df_1m["volume"].iloc[-3:].mean()  # Son 3 dakika ortalama hacim
+    vol_spike = recent_vol > avg_vol * MOMENTUM_VOLUME_SPIKE
+
+    # Yukari momentum
+    is_pump = (abs(change_5m) >= MOMENTUM_5M_THRESHOLD or abs(change_10m) >= MOMENTUM_10M_THRESHOLD)
+
+    if is_pump and change_5m > 0 or change_10m > MOMENTUM_10M_THRESHOLD:
+        if not is_duplicate(symbol, "PUMP", history, "momentum"):
+            signal = {
+                "symbol": symbol,
+                "type": "momentum",
+                "direction": "PUMP",
+                "entry_price": current_price,
+                "change_5m": change_5m,
+                "change_10m": change_10m,
+                "vol_spike": vol_spike,
+                "price_before": price_10m_ago,
+                "timestamp": time.time(),
+            }
+            signals.append(signal)
+            history.append({
+                "symbol": symbol,
+                "direction": "PUMP",
+                "type": "momentum",
+                "timestamp": time.time(),
+                "entry_price": current_price,
+            })
+
+    # Asagi momentum
+    if is_pump and change_5m < 0 or change_10m < -MOMENTUM_10M_THRESHOLD:
+        if not is_duplicate(symbol, "DUMP", history, "momentum"):
+            signal = {
+                "symbol": symbol,
+                "type": "momentum",
+                "direction": "DUMP",
+                "entry_price": current_price,
+                "change_5m": change_5m,
+                "change_10m": change_10m,
+                "vol_spike": vol_spike,
+                "price_before": price_10m_ago,
+                "timestamp": time.time(),
+            }
+            signals.append(signal)
+            history.append({
+                "symbol": symbol,
+                "direction": "DUMP",
+                "type": "momentum",
+                "timestamp": time.time(),
+                "entry_price": current_price,
+            })
+
+    if signals:
+        save_signal_history(history)
+    return signals
+
+
 def generate_signals(symbol: str, indicators: dict, trend: dict) -> list:
-    """Bir coin icin sinyal uretir."""
+    """Bir coin icin teknik sinyal uretir."""
     history = load_signal_history()
     signals = []
 
@@ -172,6 +238,7 @@ def generate_signals(symbol: str, indicators: dict, trend: dict) -> list:
         tp_sl = calculate_tp_sl(indicators["close"], "LONG", long_eval["score"])
         signal = {
             "symbol": symbol,
+            "type": "technical",
             "direction": "LONG",
             "entry_price": indicators["close"],
             "score": long_eval["score"],
@@ -184,6 +251,7 @@ def generate_signals(symbol: str, indicators: dict, trend: dict) -> list:
         history.append({
             "symbol": symbol,
             "direction": "LONG",
+            "type": "technical",
             "timestamp": time.time(),
             "entry_price": indicators["close"],
             "tp_price": tp_sl["tp_price"],
@@ -196,6 +264,7 @@ def generate_signals(symbol: str, indicators: dict, trend: dict) -> list:
         tp_sl = calculate_tp_sl(indicators["close"], "SHORT", short_eval["score"])
         signal = {
             "symbol": symbol,
+            "type": "technical",
             "direction": "SHORT",
             "entry_price": indicators["close"],
             "score": short_eval["score"],
@@ -208,6 +277,7 @@ def generate_signals(symbol: str, indicators: dict, trend: dict) -> list:
         history.append({
             "symbol": symbol,
             "direction": "SHORT",
+            "type": "technical",
             "timestamp": time.time(),
             "entry_price": indicators["close"],
             "tp_price": tp_sl["tp_price"],

@@ -2,12 +2,14 @@ name: Crypto Signal Bot
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # Her 6 saatte bir yeni workflow baslatilir
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
   signal:
     runs-on: ubuntu-latest
+    timeout-minutes: 360  # Max 6 saat
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Signal Bot
+      - name: Run Signal Bot (continuous mode)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: python main.py
