@@ -52,6 +52,7 @@ def format_signal(signal: dict) -> str:
     ema_icon = "\u2705" if details.get("EMA") else "\u274c"
     vol_icon = "\u2705" if details.get("VOL") else "\u274c"
     trend_icon = "\u2705" if details.get("TREND") else "\u274c"
+    div_icon = "\u2705" if details.get("DIV") else "\u274c"
 
     price_fmt, tp_fmt, sl_fmt = _format_prices(entry, tp, sl)
 
@@ -68,6 +69,7 @@ def format_signal(signal: dict) -> str:
         f"\U0001f4ca G\u00fcven: {confidence_bar} {score}/{MAX_SCORE}\n"
         f"\U0001f4c8 RSI: {rsi:.1f} | MACD: {macd_icon} | BB: {bb_icon}\n"
         f"    EMA: {ema_icon} | VOL: {vol_icon} | TREND: {trend_icon}\n"
+        f"    DIV: {div_icon}\n"
         f"\u23f0 {now}\n"
         f"\n"
         f"\u26a0\ufe0f <i>Bu finansal tavsiye de\u011fildir.</i>"

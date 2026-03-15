@@ -46,9 +46,14 @@ EMA_TREND = 50
 
 VOLUME_MULTIPLIER = 1.5
 
+# Diverjans parametreleri
+DIVERGENCE_WINDOWS = [10, 20, 30, 40]  # Farkli lookback pencereleri
+DIVERGENCE_MIN_CONFIRM = 3  # Minimum 3/4 pencere onayi
+DIVERGENCE_MIN_SLOPE = 0.05  # Minimum egim farki (normalize edilmis)
+
 # Sinyal esikleri
-MIN_SCORE = 4  # Minimum 4/6 gosterge onayi
-MAX_SCORE = 6
+MIN_SCORE = 4  # Minimum 4/7 gosterge onayi
+MAX_SCORE = 7
 
 # Risk yonetimi
 TP_MIN = 1.0   # %1.0

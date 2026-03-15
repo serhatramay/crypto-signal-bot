@@ -3,7 +3,7 @@ import os
 import time
 from src.config import (
     RSI_LONG_THRESHOLD, RSI_SHORT_THRESHOLD,
-    VOLUME_MULTIPLIER, MIN_SCORE,
+    VOLUME_MULTIPLIER, MIN_SCORE, MAX_SCORE,
     TP_MIN, TP_MAX, STOP_LOSS, DUPLICATE_WINDOW,
     MOMENTUM_5M_THRESHOLD, MOMENTUM_10M_THRESHOLD,
     MOMENTUM_VOLUME_SPIKE, MOMENTUM_DUPLICATE_WINDOW,
@@ -83,6 +83,13 @@ def evaluate_long(indicators: dict, trend: dict) -> dict:
     else:
         details["TREND"] = False
 
+    # RSI-Fiyat Diverjans (bullish: fiyat dusuyor ama RSI yukseliyor)
+    if indicators["bullish_divergence"]:
+        score += 1
+        details["DIV"] = True
+    else:
+        details["DIV"] = False
+
     return {"score": score, "details": details}
 
 
@@ -129,12 +136,19 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
     else:
         details["TREND"] = False
 
+    # RSI-Fiyat Diverjans (bearish: fiyat yukseliyor ama RSI dusuyor)
+    if indicators["bearish_divergence"]:
+        score += 1
+        details["DIV"] = True
+    else:
+        details["DIV"] = False
+
     return {"score": score, "details": details}
 
 
 def calculate_tp_sl(price: float, direction: str, score: int) -> dict:
     """Guven skoruna gore TP/SL hesaplar."""
-    tp_pct = TP_MIN + (TP_MAX - TP_MIN) * ((score - MIN_SCORE) / (6 - MIN_SCORE))
+    tp_pct = TP_MIN + (TP_MAX - TP_MIN) * ((score - MIN_SCORE) / (MAX_SCORE - MIN_SCORE))
     sl_pct = STOP_LOSS
 
     if direction == "LONG":
