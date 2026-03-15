@@ -4,8 +4,8 @@ import os
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = "1176599927"
 
-# Borsa (bybit: GitHub Actions ABD sunucularindan erisilebilir)
-EXCHANGE_ID = "bybit"
+# Borsa
+EXCHANGE_ID = "kucoin"
 
 # Coin listesi (Top 10)
 COINS = [
