@@ -4,8 +4,8 @@ import os
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = "1176599927"
 
-# Binance
-EXCHANGE_ID = "binance"
+# Borsa (bybit: GitHub Actions ABD sunucularindan erisilebilir)
+EXCHANGE_ID = "bybit"
 
 # Coin listesi (Top 10)
 COINS = [
@@ -18,7 +18,7 @@ COINS = [
     "ADA/USDT",
     "AVAX/USDT",
     "DOT/USDT",
-    "MATIC/USDT",
+    "POL/USDT",
 ]
 
 # Timeframe
