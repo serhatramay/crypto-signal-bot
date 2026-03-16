@@ -2,7 +2,7 @@ import json
 import os
 import time
 from src.data_fetcher import get_exchange
-from src.telegram_notifier import send_daily_summary
+from src.telegram_notifier import send_daily_summary, send_signal_result
 
 SIGNALS_FILE = os.path.join(os.path.dirname(__file__), "..", "signals_history.json")
 PERFORMANCE_FILE = os.path.join(os.path.dirname(__file__), "..", "performance.json")
@@ -60,6 +60,7 @@ def check_signals():
             perf["total"] += 1
             perf["failed"] += 1
             updated_history.append(sig)
+            print(f"  [EXPIRED] {sig['symbol']} {sig['direction']} - 24 saat icinde TP/SL'ye ulasamadi")
             continue
 
         # Guncel fiyati al
@@ -71,24 +72,30 @@ def check_signals():
             updated_history.append(sig)
             continue
 
+        result = None
         if sig["direction"] == "LONG":
             if current_price >= sig["tp_price"]:
-                sig["result"] = "tp_hit"
-                perf["total"] += 1
+                result = "tp_hit"
                 perf["successful"] += 1
             elif current_price <= sig["sl_price"]:
-                sig["result"] = "sl_hit"
-                perf["total"] += 1
+                result = "sl_hit"
                 perf["failed"] += 1
         else:  # SHORT
             if current_price <= sig["tp_price"]:
-                sig["result"] = "tp_hit"
-                perf["total"] += 1
+                result = "tp_hit"
                 perf["successful"] += 1
             elif current_price >= sig["sl_price"]:
-                sig["result"] = "sl_hit"
-                perf["total"] += 1
+                result = "sl_hit"
                 perf["failed"] += 1
+
+        if result:
+            sig["result"] = result
+            perf["total"] += 1
+            try:
+                send_signal_result(sig, result, current_price)
+                print(f"  [SONUC] {sig['symbol']} {sig['direction']} -> {result} | Giris: {sig['entry_price']:.4f} | Simdi: {current_price:.4f}")
+            except Exception as e:
+                print(f"  [WARN] Sonuc bildirimi gonderilemedi: {e}")
 
         updated_history.append(sig)
 

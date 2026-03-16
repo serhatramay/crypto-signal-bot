@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 from src.config import (
     COINS, TIMEFRAME_SIGNAL, TIMEFRAME_TREND,
-    SCAN_INTERVAL, MAX_RUNTIME,
+    SCAN_INTERVAL, MAX_RUNTIME, MAX_SCORE,
 )
 from src.data_fetcher import get_exchange, fetch_ohlcv, fetch_momentum_data
 from src.indicators import calculate_all, calculate_trend
@@ -49,7 +49,7 @@ def scan_once(exchange) -> int:
 
             signals = generate_signals(symbol, indicators, trend)
             for sig in signals:
-                print(f"  >>> {symbol} {sig['direction']} SINYAL! Skor: {sig['score']}/6")
+                print(f"  >>> {symbol} {sig['direction']} SINYAL! Skor: {sig['score']}/{MAX_SCORE} | Giris: ${sig['entry_price']:.4f} | TP: ${sig['tp_price']:.4f} | SL: ${sig['sl_price']:.4f}")
                 send_signal(sig)
                 total_signals += 1
 

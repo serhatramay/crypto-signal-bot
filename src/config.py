@@ -7,18 +7,35 @@ TELEGRAM_CHAT_ID = "1176599927"
 # Borsa
 EXCHANGE_ID = "kucoin"
 
-# Coin listesi (Top 10)
+# Coin listesi (Top 24 - yuksek hacim + volatilite, KuCoin & Binance'ta mevcut)
 COINS = [
+    # --- Majors ---
     "BTC/USDT",
     "ETH/USDT",
     "BNB/USDT",
     "SOL/USDT",
     "XRP/USDT",
+    # --- Altcoins ---
     "DOGE/USDT",
     "ADA/USDT",
     "AVAX/USDT",
     "DOT/USDT",
     "POL/USDT",
+    # --- Yeni eklenenler (yuksek hacim + volatilite) ---
+    "LINK/USDT",
+    "LTC/USDT",
+    "UNI/USDT",
+    "AAVE/USDT",
+    "NEAR/USDT",
+    "SUI/USDT",
+    "TON/USDT",
+    "TAO/USDT",
+    "FET/USDT",
+    "ZEC/USDT",
+    "PEPE/USDT",
+    "SHIB/USDT",
+    "WIF/USDT",
+    "TRUMP/USDT",
 ]
 
 # Timeframe

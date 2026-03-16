@@ -138,6 +138,53 @@ def send_signal(signal: dict) -> bool:
     return send_message(text)
 
 
+def format_signal_result(signal: dict, result: str, current_price: float) -> str:
+    """Sinyal sonuc mesajini formatlar (TP/SL hit veya expired)."""
+    symbol = signal["symbol"]
+    direction = signal["direction"]
+    entry = signal["entry_price"]
+    tp = signal["tp_price"]
+    sl = signal["sl_price"]
+
+    entry_fmt = _format_price(entry)
+    current_fmt = _format_price(current_price)
+
+    if direction == "LONG":
+        pnl_pct = ((current_price - entry) / entry) * 100
+    else:
+        pnl_pct = ((entry - current_price) / entry) * 100
+
+    if result == "tp_hit":
+        emoji = "\u2705"
+        title = "HEDEF ULASILDI"
+        pnl_sign = "+"
+    elif result == "sl_hit":
+        emoji = "\u274c"
+        title = "STOP OLDU"
+        pnl_sign = ""
+    else:
+        emoji = "\u23f3"
+        title = "SURESI DOLDU"
+        pnl_sign = "+" if pnl_pct >= 0 else ""
+
+    text = (
+        f"{emoji} <b>{title} - {symbol}</b>\n"
+        f"\n"
+        f"\U0001f4cd {direction} | Giris: ${entry_fmt}\n"
+        f"\U0001f4b0 Cikis: ${current_fmt} ({pnl_sign}{pnl_pct:.2f}%)\n"
+        f"\U0001f3af TP: ${_format_price(tp)} | \U0001f6d1 SL: ${_format_price(sl)}\n"
+        f"\n"
+        f"\U0001f916 Crypto Signal Bot"
+    )
+    return text
+
+
+def send_signal_result(signal: dict, result: str, current_price: float) -> bool:
+    """Sinyal sonucunu Telegram'a gonderir."""
+    text = format_signal_result(signal, result, current_price)
+    return send_message(text)
+
+
 def send_daily_summary(total: int, successful: int, failed: int):
     """Gunluk ozet raporu gonderir."""
     if total == 0:
