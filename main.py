@@ -10,8 +10,8 @@ from src.config import (
     COINS, TIMEFRAME_SIGNAL, TIMEFRAME_TREND,
     SCAN_INTERVAL, MAX_RUNTIME, MAX_SCORE,
 )
-from src.data_fetcher import get_exchange, fetch_ohlcv, fetch_momentum_data, check_btc_macro
-from src.indicators import calculate_all, calculate_trend
+from src.data_fetcher import get_exchange, fetch_ohlcv, fetch_momentum_data, check_btc_macro, check_funding_rate
+from src.indicators import calculate_all, calculate_trend, calculate_trend_4h
 from src.signal_engine import generate_signals, detect_momentum
 from src.telegram_notifier import send_signal
 from src.performance_tracker import check_signals, send_summary_if_needed, is_drawdown_active
@@ -36,6 +36,10 @@ def scan_once(exchange) -> int:
     btc_trend = check_btc_macro(exchange)
     print(f"  [BTC MAKRO] Trend: {btc_trend}")
 
+    # Funding rate kontrolu (BTC proxy, tum coinler icin)
+    funding = check_funding_rate()
+    print(f"  [FUNDING] Rate: {funding['funding_rate']:.6f} ({funding['funding_status']})")
+
     for symbol in COINS:
         try:
             # --- Momentum tespiti (1m mumlar, hizli) ---
@@ -47,14 +51,17 @@ def scan_once(exchange) -> int:
                 send_signal(sig)
                 total_signals += 1
 
-            # --- Teknik analiz (15m + 1h) ---
+            # --- Teknik analiz (15m + 1h + 4h) ---
             df_15m = fetch_ohlcv(exchange, symbol, TIMEFRAME_SIGNAL)
             df_1h = fetch_ohlcv(exchange, symbol, TIMEFRAME_TREND)
+            df_4h = fetch_ohlcv(exchange, symbol, "4h", limit=50)
 
             indicators = calculate_all(df_15m)
             trend = calculate_trend(df_1h)
+            trend_4h = calculate_trend_4h(df_4h)
 
-            signals = generate_signals(symbol, indicators, trend, btc_trend)
+            signals = generate_signals(symbol, indicators, trend, btc_trend,
+                                       trend_4h=trend_4h, funding=funding)
             for sig in signals:
                 print(f"  >>> {symbol} {sig['direction']} SINYAL! Skor: {sig['score']}/{MAX_SCORE} | Giris: ${sig['entry_price']:.4f} | TP: ${sig['tp_price']:.4f} | SL: ${sig['sl_price']:.4f}")
                 send_signal(sig)

@@ -5,6 +5,7 @@ from src.config import (
     RSI_PERIOD, MACD_FAST, MACD_SLOW, MACD_SIGNAL,
     BB_PERIOD, BB_STD, EMA_FAST, EMA_SLOW, EMA_TREND,
     DIVERGENCE_WINDOWS, DIVERGENCE_MIN_CONFIRM, DIVERGENCE_MIN_SLOPE,
+    VOL_REGIME_CALM, VOL_REGIME_NORMAL, VOL_REGIME_VOLATILE,
 )
 
 
@@ -104,6 +105,39 @@ def calculate_divergence(df: pd.DataFrame) -> dict:
     }
 
 
+def calculate_volatility(df: pd.DataFrame) -> dict:
+    """ATR bazli volatilite rejimi hesaplar."""
+    atr = ta.volatility.AverageTrueRange(
+        high=df["high"], low=df["low"], close=df["close"], window=14
+    ).average_true_range()
+    current_atr = atr.iloc[-1]
+    atr_pct = (current_atr / df["close"].iloc[-1]) * 100
+
+    if atr_pct < VOL_REGIME_CALM:
+        regime = "calm"
+    elif atr_pct < VOL_REGIME_NORMAL:
+        regime = "normal"
+    elif atr_pct < VOL_REGIME_VOLATILE:
+        regime = "volatile"
+    else:
+        regime = "extreme"
+
+    return {"atr": current_atr, "atr_pct": atr_pct, "volatility_regime": regime}
+
+
+def calculate_trend_4h(df_4h: pd.DataFrame) -> dict:
+    """4h trend filtresi icin EMA50 hesaplar."""
+    ema_trend = calculate_ema(df_4h, EMA_TREND)
+    close = df_4h["close"].iloc[-1]
+    ema_val = ema_trend.iloc[-1]
+    gap_pct = ((close - ema_val) / ema_val) * 100
+    return {
+        "ema_trend_4h": ema_val,
+        "above_trend_4h": close > ema_val,
+        "trend_4h_gap": gap_pct,
+    }
+
+
 def calculate_all(df: pd.DataFrame) -> dict:
     """Tum gostergeleri hesaplar ve son degerleri doner."""
     rsi = calculate_rsi(df)
@@ -112,6 +146,7 @@ def calculate_all(df: pd.DataFrame) -> dict:
     ema_fast = calculate_ema(df, EMA_FAST)
     ema_slow = calculate_ema(df, EMA_SLOW)
     divergence = calculate_divergence(df)
+    volatility = calculate_volatility(df)
 
     close = df["close"].iloc[-1]
     volume = df["volume"].iloc[-1]
@@ -142,6 +177,9 @@ def calculate_all(df: pd.DataFrame) -> dict:
         "avg_volume": avg_volume,
         "bullish_divergence": divergence["bullish_divergence"],
         "bearish_divergence": divergence["bearish_divergence"],
+        "atr": volatility["atr"],
+        "atr_pct": volatility["atr_pct"],
+        "volatility_regime": volatility["volatility_regime"],
     }
 
 

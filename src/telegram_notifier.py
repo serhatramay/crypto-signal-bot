@@ -59,6 +59,25 @@ def format_signal(signal: dict) -> str:
     tp_sign = "+" if direction == "LONG" else "-"
     sl_sign = "-" if direction == "LONG" else "+"
 
+    # Volatilite rejimi
+    vol_regime = signal.get("volatility_regime", "normal")
+    atr_pct = signal.get("atr_pct", 0)
+    vol_icons = {"calm": "\U0001f7e6", "normal": "\U0001f7e9", "volatile": "\U0001f7e8", "extreme": "\U0001f7e5"}
+    vol_icon = vol_icons.get(vol_regime, "\U0001f7e9")
+    vol_label = {"calm": "Sakin", "normal": "Normal", "volatile": "Volatil", "extreme": "Ekstrem"}.get(vol_regime, "Normal")
+
+    # 4h trend
+    trend_4h_aligned = signal.get("trend_4h_aligned")
+    trend_4h_text = ""
+    if trend_4h_aligned is not None:
+        trend_4h_text = "\u2705 Uyumlu" if trend_4h_aligned else "\u26a0\ufe0f Ters"
+
+    # Funding rate
+    fr = signal.get("funding_rate")
+    funding_text = ""
+    if fr is not None:
+        funding_text = f"{fr*100:.4f}%"
+
     text = (
         f"{emoji} <b>{direction} S\u0130NYAL\u0130 - {symbol}</b>\n"
         f"\n"
@@ -70,6 +89,15 @@ def format_signal(signal: dict) -> str:
         f"\U0001f4c8 RSI: {rsi:.1f} | MACD: {macd_icon} | BB: {bb_icon}\n"
         f"    EMA: {ema_icon} | VOL: {vol_icon} | TREND: {trend_icon}\n"
         f"    DIV: {div_icon}\n"
+        f"{vol_icon} Volatilite: {vol_label} (ATR: {atr_pct:.2f}%)\n"
+    )
+
+    if trend_4h_text:
+        text += f"\U0001f4c8 4H Trend: {trend_4h_text}\n"
+    if funding_text:
+        text += f"\U0001f4b0 Funding: {funding_text}\n"
+
+    text += (
         f"\u23f0 {now}\n"
         f"\n"
         f"\u26a0\ufe0f <i>Bu finansal tavsiye de\u011fildir.</i>"

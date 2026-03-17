@@ -7,6 +7,7 @@ from src.config import (
     TP_MIN, TP_MAX, STOP_LOSS, DUPLICATE_WINDOW,
     MOMENTUM_5M_THRESHOLD, MOMENTUM_10M_THRESHOLD,
     MOMENTUM_VOLUME_SPIKE, MOMENTUM_DUPLICATE_WINDOW,
+    VOL_MULTIPLIERS, FUNDING_HIGH_THRESHOLD,
 )
 
 SIGNALS_FILE = os.path.join(os.path.dirname(__file__), "..", "signals_history.json")
@@ -146,10 +147,12 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
     return {"score": score, "details": details}
 
 
-def calculate_tp_sl(price: float, direction: str, score: int) -> dict:
-    """Guven skoruna gore TP/SL hesaplar."""
-    tp_pct = TP_MIN + (TP_MAX - TP_MIN) * ((score - MIN_SCORE) / (MAX_SCORE - MIN_SCORE))
-    sl_pct = STOP_LOSS
+def calculate_tp_sl(price: float, direction: str, score: int, volatility_regime: str = "normal") -> dict:
+    """Guven skoruna ve volatilite rejimine gore TP/SL hesaplar."""
+    base_tp_pct = TP_MIN + (TP_MAX - TP_MIN) * ((score - MIN_SCORE) / (MAX_SCORE - MIN_SCORE))
+    vol_mult = VOL_MULTIPLIERS.get(volatility_regime, 1.0)
+    tp_pct = base_tp_pct * vol_mult
+    sl_pct = STOP_LOSS * vol_mult
 
     if direction == "LONG":
         tp_price = price * (1 + tp_pct / 100)
@@ -249,23 +252,38 @@ def detect_momentum(symbol: str, df_1m, btc_trend: str = "neutral") -> list:
     return signals
 
 
-def generate_signals(symbol: str, indicators: dict, trend: dict, btc_trend: str = "neutral") -> list:
-    """Bir coin icin teknik sinyal uretir. BTC makro filtresi uygular."""
+def generate_signals(symbol: str, indicators: dict, trend: dict, btc_trend: str = "neutral",
+                     trend_4h: dict = None, funding: dict = None) -> list:
+    """Bir coin icin teknik sinyal uretir. BTC makro, 4h trend ve funding filtresi uygular."""
     history = load_signal_history()
     signals = []
+    vol_regime = indicators.get("volatility_regime", "normal")
 
     # LONG degerlendirmesi (BTC bearish ise LONG sinyal uretme)
     long_eval = evaluate_long(indicators, trend)
-    if long_eval["score"] >= MIN_SCORE and not is_duplicate(symbol, "LONG", history) and btc_trend != "bearish":
-        tp_sl = calculate_tp_sl(indicators["close"], "LONG", long_eval["score"])
+    long_score = long_eval["score"]
+
+    # Funding rate cezasi: kalabalik longcularda puan dus
+    if funding and funding.get("funding_rate", 0) > FUNDING_HIGH_THRESHOLD:
+        long_score -= 1
+
+    # 4h trend filtresi: 4h dususteyse ve skor < 6 ise LONG sinyal uretme
+    trend_4h_block_long = (trend_4h and not trend_4h["above_trend_4h"] and long_score < 6)
+
+    if long_score >= MIN_SCORE and not is_duplicate(symbol, "LONG", history) and btc_trend != "bearish" and not trend_4h_block_long:
+        tp_sl = calculate_tp_sl(indicators["close"], "LONG", long_score, vol_regime)
         signal = {
             "symbol": symbol,
             "type": "technical",
             "direction": "LONG",
             "entry_price": indicators["close"],
-            "score": long_eval["score"],
+            "score": long_score,
             "details": long_eval["details"],
             "rsi": indicators["rsi"],
+            "volatility_regime": vol_regime,
+            "atr_pct": indicators.get("atr_pct", 0),
+            "trend_4h_aligned": trend_4h["above_trend_4h"] if trend_4h else None,
+            "funding_rate": funding.get("funding_rate", 0) if funding else None,
             "timestamp": time.time(),
             **tp_sl,
         }
@@ -282,16 +300,29 @@ def generate_signals(symbol: str, indicators: dict, trend: dict, btc_trend: str 
 
     # SHORT degerlendirmesi (BTC bullish ise SHORT sinyal uretme)
     short_eval = evaluate_short(indicators, trend)
-    if short_eval["score"] >= MIN_SCORE and not is_duplicate(symbol, "SHORT", history) and btc_trend != "bullish":
-        tp_sl = calculate_tp_sl(indicators["close"], "SHORT", short_eval["score"])
+    short_score = short_eval["score"]
+
+    # Funding rate cezasi: kalabalik shortcularda puan dus
+    if funding and funding.get("funding_rate", 0) < -FUNDING_HIGH_THRESHOLD:
+        short_score -= 1
+
+    # 4h trend filtresi: 4h yukseliste ve skor < 6 ise SHORT sinyal uretme
+    trend_4h_block_short = (trend_4h and trend_4h["above_trend_4h"] and short_score < 6)
+
+    if short_score >= MIN_SCORE and not is_duplicate(symbol, "SHORT", history) and btc_trend != "bullish" and not trend_4h_block_short:
+        tp_sl = calculate_tp_sl(indicators["close"], "SHORT", short_score, vol_regime)
         signal = {
             "symbol": symbol,
             "type": "technical",
             "direction": "SHORT",
             "entry_price": indicators["close"],
-            "score": short_eval["score"],
+            "score": short_score,
             "details": short_eval["details"],
             "rsi": indicators["rsi"],
+            "volatility_regime": vol_regime,
+            "atr_pct": indicators.get("atr_pct", 0),
+            "trend_4h_aligned": (not trend_4h["above_trend_4h"]) if trend_4h else None,
+            "funding_rate": funding.get("funding_rate", 0) if funding else None,
             "timestamp": time.time(),
             **tp_sl,
         }

@@ -1,7 +1,10 @@
 import ccxt
 import pandas as pd
 import ta
-from src.config import EXCHANGE_ID, CANDLE_LIMIT, MOMENTUM_CANDLE_LIMIT, EMA_FAST, EMA_SLOW
+from src.config import (
+    EXCHANGE_ID, CANDLE_LIMIT, MOMENTUM_CANDLE_LIMIT,
+    EMA_FAST, EMA_SLOW, FUNDING_HIGH_THRESHOLD,
+)
 
 
 def get_exchange():
@@ -42,3 +45,29 @@ def check_btc_macro(exchange) -> str:
     except Exception as e:
         print(f"[WARN] BTC makro kontrol hatasi: {e}")
         return "neutral"
+
+
+def _classify_funding(rate: float) -> str:
+    """Funding rate'ini siniflandirir."""
+    if rate > FUNDING_HIGH_THRESHOLD:
+        return "high_long"
+    elif rate > 0.0001:
+        return "mild_long"
+    elif rate < -FUNDING_HIGH_THRESHOLD:
+        return "high_short"
+    elif rate < -0.0001:
+        return "mild_short"
+    else:
+        return "neutral"
+
+
+def check_funding_rate() -> dict:
+    """BTC funding rate'ini kontrol eder. Tum piyasa icin proxy olarak kullanilir."""
+    try:
+        futures = ccxt.kucoinfutures({"enableRateLimit": True})
+        fr = futures.fetch_funding_rate("BTC/USDT:USDT")
+        rate = fr.get("fundingRate", 0) or 0
+        return {"funding_rate": rate, "funding_status": _classify_funding(rate)}
+    except Exception as e:
+        print(f"[WARN] Funding rate alinamadi: {e}")
+        return {"funding_rate": 0, "funding_status": "neutral"}

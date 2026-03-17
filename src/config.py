@@ -86,6 +86,24 @@ MOMENTUM_VOLUME_SPIKE = 3.0   # 3x ortalama hacim = momentum onayi
 DUPLICATE_WINDOW = 3600       # Teknik sinyal: 1 saat
 MOMENTUM_DUPLICATE_WINDOW = 1800  # Momentum alarmi: 30 dakika
 
+# Volatilite rejim esikleri (ATR% olarak)
+VOL_REGIME_CALM = 0.5
+VOL_REGIME_NORMAL = 1.0
+VOL_REGIME_VOLATILE = 2.0
+# >= 2.0 = extreme
+
+# TP/SL carpanlari (rejime gore)
+VOL_MULTIPLIERS = {
+    "calm": 0.7,
+    "normal": 1.0,
+    "volatile": 1.4,
+    "extreme": 1.8,
+}
+
+# Funding rate esikleri
+FUNDING_HIGH_THRESHOLD = 0.0005    # %0.05 - kalabalik uyarisi
+FUNDING_EXTREME_THRESHOLD = 0.001  # %0.1 - sinyal bastirma
+
 # Drawdown devre kesici
 DRAWDOWN_WINDOW = 21600      # 6 saat (saniye)
 DRAWDOWN_MAX_STOPS = 3       # Maksimum ardisik stop sayisi
