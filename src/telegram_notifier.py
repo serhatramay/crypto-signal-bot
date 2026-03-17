@@ -78,7 +78,7 @@ def format_signal(signal: dict) -> str:
 
 
 def format_momentum(signal: dict) -> str:
-    """Momentum alarm mesajini formatlar."""
+    """Momentum sinyal mesajini formatlar (LONG/SHORT + TP/SL)."""
     direction = signal["direction"]
     symbol = signal["symbol"]
     price = signal["entry_price"]
@@ -86,28 +86,46 @@ def format_momentum(signal: dict) -> str:
     change_5m = signal["change_5m"]
     change_10m = signal["change_10m"]
     vol_spike = signal["vol_spike"]
+    tp = signal["tp_price"]
+    sl = signal["sl_price"]
+    tp_pct = signal["tp_pct"]
+    sl_pct = signal["sl_pct"]
     now = datetime.now(timezone.utc).strftime("%H:%M UTC")
 
-    if direction == "PUMP":
-        emoji = "\U0001f680"  # roket
-        title = "ANI YUKSELIS"
+    if direction == "LONG":
+        emoji = "\U0001f680"
+        title = f"MOMENTUM LONG - {symbol}"
         arrow = "\u2b06\ufe0f"
+        tp_sign = "+"
+        sl_sign = "-"
     else:
-        emoji = "\U0001f4a5"  # patlama
-        title = "ANI DUSUS"
+        emoji = "\U0001f4a5"
+        title = f"MOMENTUM SHORT - {symbol}"
         arrow = "\u2b07\ufe0f"
+        tp_sign = "-"
+        sl_sign = "+"
 
     price_fmt = _format_price(price)
     before_fmt = _format_price(price_before)
-    vol_text = "\U0001f525 YUKSEK HACIM" if vol_spike else "\U0001f4ca Normal hacim"
+    tp_fmt = _format_price(tp)
+    sl_fmt = _format_price(sl)
+    vol_text = "\U0001f525 YUKSEK HACIM" if vol_spike else ""
 
     text = (
-        f"{emoji} <b>{title} - {symbol}</b>\n"
+        f"{emoji} <b>{title}</b>\n"
         f"\n"
         f"{arrow} ${before_fmt} \u2192 ${price_fmt}\n"
-        f"\U0001f552 5dk: {change_5m:+.2f}%\n"
-        f"\U0001f553 10dk: {change_10m:+.2f}%\n"
-        f"{vol_text}\n"
+        f"\U0001f552 5dk: {change_5m:+.2f}% | 10dk: {change_10m:+.2f}%\n"
+        f"\n"
+        f"\U0001f4b0 Giri\u015f: ${price_fmt}\n"
+        f"\U0001f3af Hedef: ${tp_fmt} ({tp_sign}{tp_pct:.1f}%)\n"
+        f"\U0001f6d1 Stop: ${sl_fmt} ({sl_sign}{sl_pct:.1f}%)\n"
+    )
+
+    if vol_text:
+        text += f"{vol_text}\n"
+
+    text += (
         f"\u23f0 {now}\n"
         f"\n"
         f"\u26a0\ufe0f <i>Bu finansal tavsiye de\u011fildir.</i>"

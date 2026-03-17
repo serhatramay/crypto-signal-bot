@@ -54,8 +54,8 @@ def check_signals():
             updated_history.append(sig)
             continue
 
-        # Momentum sinyallerini atla (tp_price/sl_price yok)
-        if sig.get("type") == "momentum":
+        # tp_price/sl_price olmayan eski kayitlari atla
+        if "tp_price" not in sig or "sl_price" not in sig:
             updated_history.append(sig)
             continue
 

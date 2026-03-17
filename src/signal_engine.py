@@ -167,7 +167,7 @@ def calculate_tp_sl(price: float, direction: str, score: int) -> dict:
 
 
 def detect_momentum(symbol: str, df_1m) -> list:
-    """1m mumlardan ani fiyat hareketi tespit eder."""
+    """1m mumlardan ani fiyat hareketi tespit eder. PUMP=LONG, DUMP=SHORT sinyal uretir."""
     if len(df_1m) < 10:
         return []
 
@@ -188,52 +188,60 @@ def detect_momentum(symbol: str, df_1m) -> list:
     recent_vol = df_1m["volume"].iloc[-3:].mean()  # Son 3 dakika ortalama hacim
     vol_spike = recent_vol > avg_vol * MOMENTUM_VOLUME_SPIKE
 
-    # Yukari momentum
+    # Yukari momentum -> LONG sinyal
     is_pump = (abs(change_5m) >= MOMENTUM_5M_THRESHOLD or abs(change_10m) >= MOMENTUM_10M_THRESHOLD)
 
     if is_pump and change_5m > 0 or change_10m > MOMENTUM_10M_THRESHOLD:
-        if not is_duplicate(symbol, "PUMP", history, "momentum"):
+        if not is_duplicate(symbol, "LONG", history, "momentum"):
+            tp_sl = calculate_tp_sl(current_price, "LONG", MIN_SCORE)
             signal = {
                 "symbol": symbol,
                 "type": "momentum",
-                "direction": "PUMP",
+                "direction": "LONG",
                 "entry_price": current_price,
                 "change_5m": change_5m,
                 "change_10m": change_10m,
                 "vol_spike": vol_spike,
                 "price_before": price_10m_ago,
                 "timestamp": time.time(),
+                **tp_sl,
             }
             signals.append(signal)
             history.append({
                 "symbol": symbol,
-                "direction": "PUMP",
+                "direction": "LONG",
                 "type": "momentum",
                 "timestamp": time.time(),
                 "entry_price": current_price,
+                "tp_price": tp_sl["tp_price"],
+                "sl_price": tp_sl["sl_price"],
             })
 
-    # Asagi momentum
+    # Asagi momentum -> SHORT sinyal
     if is_pump and change_5m < 0 or change_10m < -MOMENTUM_10M_THRESHOLD:
-        if not is_duplicate(symbol, "DUMP", history, "momentum"):
+        if not is_duplicate(symbol, "SHORT", history, "momentum"):
+            tp_sl = calculate_tp_sl(current_price, "SHORT", MIN_SCORE)
             signal = {
                 "symbol": symbol,
                 "type": "momentum",
-                "direction": "DUMP",
+                "direction": "SHORT",
                 "entry_price": current_price,
                 "change_5m": change_5m,
                 "change_10m": change_10m,
                 "vol_spike": vol_spike,
                 "price_before": price_10m_ago,
                 "timestamp": time.time(),
+                **tp_sl,
             }
             signals.append(signal)
             history.append({
                 "symbol": symbol,
-                "direction": "DUMP",
+                "direction": "SHORT",
                 "type": "momentum",
                 "timestamp": time.time(),
                 "entry_price": current_price,
+                "tp_price": tp_sl["tp_price"],
+                "sl_price": tp_sl["sl_price"],
             })
 
     if signals:
