@@ -54,6 +54,11 @@ def check_signals():
             updated_history.append(sig)
             continue
 
+        # Momentum sinyallerini atla (tp_price/sl_price yok)
+        if sig.get("type") == "momentum":
+            updated_history.append(sig)
+            continue
+
         # 24 saatten eski sinyalleri suresi dolmus olarak isaretle
         if time.time() - sig["timestamp"] > 86400:
             sig["result"] = "expired"
