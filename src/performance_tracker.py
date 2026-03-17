@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import pandas as pd
 from src.config import DRAWDOWN_WINDOW, DRAWDOWN_MAX_STOPS
 from src.data_fetcher import get_exchange
 from src.telegram_notifier import send_daily_summary, send_signal_result
@@ -83,30 +84,53 @@ def check_signals():
             print(f"  [EXPIRED] {sig['symbol']} {sig['direction']} - 24 saat icinde TP/SL'ye ulasamadi")
             continue
 
-        # Guncel fiyati al
+        # Sinyal sonrasi mumlari kontrol et (high/low ile aradaki hareketleri yakala)
         try:
-            ticker = exchange.fetch_ticker(sig["symbol"])
-            current_price = ticker["last"]
+            from src.data_fetcher import fetch_ohlcv
+            # Sinyal verildikten sonraki 5m mumlari cek
+            df = fetch_ohlcv(exchange, sig["symbol"], "5m", limit=30)
+            sig_time = sig["timestamp"] * 1000  # ms'ye cevir
+            # Sinyal zamanindan sonraki mumlari filtrele
+            df_after = df[df["timestamp"] >= pd.Timestamp(sig_time, unit="ms")]
+            if len(df_after) > 0:
+                high_price = df_after["high"].max()
+                low_price = df_after["low"].min()
+            else:
+                high_price = df["high"].iloc[-1]
+                low_price = df["low"].iloc[-1]
+            current_price = df["close"].iloc[-1]
         except Exception as e:
-            print(f"[WARN] {sig['symbol']} fiyat alinamadi: {e}")
-            updated_history.append(sig)
-            continue
+            # Fallback: sadece ticker kullan
+            try:
+                ticker = exchange.fetch_ticker(sig["symbol"])
+                current_price = ticker["last"]
+                high_price = current_price
+                low_price = current_price
+            except Exception as e2:
+                print(f"[WARN] {sig['symbol']} fiyat alinamadi: {e2}")
+                updated_history.append(sig)
+                continue
 
         result = None
         if sig["direction"] == "LONG":
-            if current_price >= sig["tp_price"]:
+            # High price TP'ye ulasti mi? (anlik fiyat geri donmus olsa bile)
+            if high_price >= sig["tp_price"]:
                 result = "tp_hit"
                 perf["successful"] += 1
-            elif current_price <= sig["sl_price"]:
+                current_price = sig["tp_price"]
+            elif low_price <= sig["sl_price"]:
                 result = "sl_hit"
                 perf["failed"] += 1
+                current_price = sig["sl_price"]
         else:  # SHORT
-            if current_price <= sig["tp_price"]:
+            if low_price <= sig["tp_price"]:
                 result = "tp_hit"
                 perf["successful"] += 1
-            elif current_price >= sig["sl_price"]:
+                current_price = sig["tp_price"]
+            elif high_price >= sig["sl_price"]:
                 result = "sl_hit"
                 perf["failed"] += 1
+                current_price = sig["sl_price"]
 
         if result:
             sig["result"] = result
