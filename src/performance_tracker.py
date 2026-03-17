@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from src.config import DRAWDOWN_WINDOW, DRAWDOWN_MAX_STOPS
 from src.data_fetcher import get_exchange
 from src.telegram_notifier import send_daily_summary, send_signal_result
 
@@ -36,6 +37,20 @@ def load_performance() -> dict:
 def save_performance(perf: dict):
     with open(PERFORMANCE_FILE, "w") as f:
         json.dump(perf, f, indent=2)
+
+
+def is_drawdown_active() -> bool:
+    """Son 6 saatte 3+ stop loss varsa sinyal uretimini durdurur."""
+    history = load_signal_history()
+    now = time.time()
+    recent_stops = 0
+    for sig in history:
+        if (sig.get("result") == "sl_hit"
+                and now - sig["timestamp"] < DRAWDOWN_WINDOW):
+            recent_stops += 1
+    if recent_stops >= DRAWDOWN_MAX_STOPS:
+        return True
+    return False
 
 
 def check_signals():

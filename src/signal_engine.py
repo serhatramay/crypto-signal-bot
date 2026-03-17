@@ -166,7 +166,7 @@ def calculate_tp_sl(price: float, direction: str, score: int) -> dict:
     }
 
 
-def detect_momentum(symbol: str, df_1m) -> list:
+def detect_momentum(symbol: str, df_1m, btc_trend: str = "neutral") -> list:
     """1m mumlardan ani fiyat hareketi tespit eder. PUMP=LONG, DUMP=SHORT sinyal uretir."""
     if len(df_1m) < 10:
         return []
@@ -191,7 +191,7 @@ def detect_momentum(symbol: str, df_1m) -> list:
     # Yukari momentum -> LONG sinyal
     is_pump = (abs(change_5m) >= MOMENTUM_5M_THRESHOLD or abs(change_10m) >= MOMENTUM_10M_THRESHOLD)
 
-    if is_pump and change_5m > 0 or change_10m > MOMENTUM_10M_THRESHOLD:
+    if (is_pump and change_5m > 0 or change_10m > MOMENTUM_10M_THRESHOLD) and btc_trend != "bearish":
         if not is_duplicate(symbol, "LONG", history, "momentum"):
             tp_sl = calculate_tp_sl(current_price, "LONG", MIN_SCORE)
             signal = {
@@ -218,7 +218,7 @@ def detect_momentum(symbol: str, df_1m) -> list:
             })
 
     # Asagi momentum -> SHORT sinyal
-    if is_pump and change_5m < 0 or change_10m < -MOMENTUM_10M_THRESHOLD:
+    if (is_pump and change_5m < 0 or change_10m < -MOMENTUM_10M_THRESHOLD) and btc_trend != "bullish":
         if not is_duplicate(symbol, "SHORT", history, "momentum"):
             tp_sl = calculate_tp_sl(current_price, "SHORT", MIN_SCORE)
             signal = {
@@ -249,14 +249,14 @@ def detect_momentum(symbol: str, df_1m) -> list:
     return signals
 
 
-def generate_signals(symbol: str, indicators: dict, trend: dict) -> list:
-    """Bir coin icin teknik sinyal uretir."""
+def generate_signals(symbol: str, indicators: dict, trend: dict, btc_trend: str = "neutral") -> list:
+    """Bir coin icin teknik sinyal uretir. BTC makro filtresi uygular."""
     history = load_signal_history()
     signals = []
 
-    # LONG degerlendirmesi
+    # LONG degerlendirmesi (BTC bearish ise LONG sinyal uretme)
     long_eval = evaluate_long(indicators, trend)
-    if long_eval["score"] >= MIN_SCORE and not is_duplicate(symbol, "LONG", history):
+    if long_eval["score"] >= MIN_SCORE and not is_duplicate(symbol, "LONG", history) and btc_trend != "bearish":
         tp_sl = calculate_tp_sl(indicators["close"], "LONG", long_eval["score"])
         signal = {
             "symbol": symbol,
@@ -280,9 +280,9 @@ def generate_signals(symbol: str, indicators: dict, trend: dict) -> list:
             "sl_price": tp_sl["sl_price"],
         })
 
-    # SHORT degerlendirmesi
+    # SHORT degerlendirmesi (BTC bullish ise SHORT sinyal uretme)
     short_eval = evaluate_short(indicators, trend)
-    if short_eval["score"] >= MIN_SCORE and not is_duplicate(symbol, "SHORT", history):
+    if short_eval["score"] >= MIN_SCORE and not is_duplicate(symbol, "SHORT", history) and btc_trend != "bullish":
         tp_sl = calculate_tp_sl(indicators["close"], "SHORT", short_eval["score"])
         signal = {
             "symbol": symbol,

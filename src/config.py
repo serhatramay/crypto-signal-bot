@@ -73,9 +73,9 @@ MIN_SCORE = 3  # Minimum 3/7 gosterge onayi
 MAX_SCORE = 7
 
 # Risk yonetimi
-TP_MIN = 1.0   # %1.0
-TP_MAX = 1.5   # %1.5
-STOP_LOSS = 0.75  # %0.75
+TP_MIN = 2.0   # %2.0
+TP_MAX = 3.0   # %3.0
+STOP_LOSS = 1.5  # %1.5
 
 # Momentum (ani hareket) esikleri
 MOMENTUM_5M_THRESHOLD = 1.5   # %1.5 hareket 5 dakikada
@@ -85,6 +85,10 @@ MOMENTUM_VOLUME_SPIKE = 3.0   # 3x ortalama hacim = momentum onayi
 # Duplicate sinyal kontrolu (saniye)
 DUPLICATE_WINDOW = 3600       # Teknik sinyal: 1 saat
 MOMENTUM_DUPLICATE_WINDOW = 1800  # Momentum alarmi: 30 dakika
+
+# Drawdown devre kesici
+DRAWDOWN_WINDOW = 21600      # 6 saat (saniye)
+DRAWDOWN_MAX_STOPS = 3       # Maksimum ardisik stop sayisi
 
 # Surekli calisma modu
 SCAN_INTERVAL = 120  # 2 dakikada bir tarama (saniye)

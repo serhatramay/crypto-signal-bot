@@ -10,11 +10,11 @@ from src.config import (
     COINS, TIMEFRAME_SIGNAL, TIMEFRAME_TREND,
     SCAN_INTERVAL, MAX_RUNTIME, MAX_SCORE,
 )
-from src.data_fetcher import get_exchange, fetch_ohlcv, fetch_momentum_data
+from src.data_fetcher import get_exchange, fetch_ohlcv, fetch_momentum_data, check_btc_macro
 from src.indicators import calculate_all, calculate_trend
 from src.signal_engine import generate_signals, detect_momentum
 from src.telegram_notifier import send_signal
-from src.performance_tracker import check_signals, send_summary_if_needed
+from src.performance_tracker import check_signals, send_summary_if_needed, is_drawdown_active
 
 
 def scan_once(exchange) -> int:
@@ -27,27 +27,34 @@ def scan_once(exchange) -> int:
     except Exception as e:
         print(f"[WARN] Performans kontrolu hatasi: {e}")
 
+    # Drawdown devre kesici kontrolu
+    if is_drawdown_active():
+        print(f"  [GUARD] Drawdown koruma aktif - sinyal uretimi durduruldu (son 6 saatte 3+ SL)")
+        return 0
+
+    # BTC makro trend kontrolu (tum coinler icin bir kez)
+    btc_trend = check_btc_macro(exchange)
+    print(f"  [BTC MAKRO] Trend: {btc_trend}")
+
     for symbol in COINS:
         try:
             # --- Momentum tespiti (1m mumlar, hizli) ---
             df_1m = fetch_momentum_data(exchange, symbol)
-            momentum_signals = detect_momentum(symbol, df_1m)
+            momentum_signals = detect_momentum(symbol, df_1m, btc_trend)
             for sig in momentum_signals:
                 print(f"  >>> {symbol} {sig['direction']}! "
                       f"5dk: {sig['change_5m']:+.2f}% | 10dk: {sig['change_10m']:+.2f}%")
                 send_signal(sig)
                 total_signals += 1
 
-            # --- Teknik analiz (15m + 1h, her 5. turda) ---
-            # Teknik gostergeler daha yavas degisir, her turda gerek yok
-            # Ama basitlik icin her turda kontrol ediyoruz
+            # --- Teknik analiz (15m + 1h) ---
             df_15m = fetch_ohlcv(exchange, symbol, TIMEFRAME_SIGNAL)
             df_1h = fetch_ohlcv(exchange, symbol, TIMEFRAME_TREND)
 
             indicators = calculate_all(df_15m)
             trend = calculate_trend(df_1h)
 
-            signals = generate_signals(symbol, indicators, trend)
+            signals = generate_signals(symbol, indicators, trend, btc_trend)
             for sig in signals:
                 print(f"  >>> {symbol} {sig['direction']} SINYAL! Skor: {sig['score']}/{MAX_SCORE} | Giris: ${sig['entry_price']:.4f} | TP: ${sig['tp_price']:.4f} | SL: ${sig['sl_price']:.4f}")
                 send_signal(sig)
