@@ -59,7 +59,7 @@ def evaluate_long(indicators: dict, trend: dict) -> dict:
 
     bb_lower = indicators["bb_lower"]
     close = indicators["close"]
-    if close <= bb_lower * 1.005:
+    if close <= bb_lower * 1.015:
         score += 1
         details["BB"] = True
     else:
@@ -112,7 +112,7 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
 
     bb_upper = indicators["bb_upper"]
     close = indicators["close"]
-    if close >= bb_upper * 0.995:
+    if close >= bb_upper * 0.985:
         score += 1
         details["BB"] = True
     else:
