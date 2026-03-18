@@ -57,7 +57,7 @@ def evaluate_long(indicators: dict, trend: dict) -> dict:
     else:
         details["RSI"] = False
 
-    if indicators["macd_cross_up"]:
+    if indicators["macd_diff"] > 0:
         score += 1
         details["MACD"] = True
     else:
@@ -71,7 +71,7 @@ def evaluate_long(indicators: dict, trend: dict) -> dict:
     else:
         details["BB"] = False
 
-    if indicators["ema_cross_up"]:
+    if indicators["ema_fast"] > indicators["ema_slow"]:
         score += 1
         details["EMA"] = True
     else:
@@ -110,7 +110,7 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
     else:
         details["RSI"] = False
 
-    if indicators["macd_cross_down"]:
+    if indicators["macd_diff"] < 0:
         score += 1
         details["MACD"] = True
     else:
@@ -124,7 +124,7 @@ def evaluate_short(indicators: dict, trend: dict) -> dict:
     else:
         details["BB"] = False
 
-    if indicators["ema_cross_down"]:
+    if indicators["ema_fast"] < indicators["ema_slow"]:
         score += 1
         details["EMA"] = True
     else:

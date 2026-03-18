@@ -47,8 +47,8 @@ MOMENTUM_CANDLE_LIMIT = 15  # Son 15 dakikalik 1m mumlar
 
 # Gosterge parametreleri
 RSI_PERIOD = 14
-RSI_LONG_THRESHOLD = 48
-RSI_SHORT_THRESHOLD = 52
+RSI_LONG_THRESHOLD = 45
+RSI_SHORT_THRESHOLD = 55
 
 MACD_FAST = 12
 MACD_SLOW = 26
@@ -69,7 +69,7 @@ DIVERGENCE_MIN_CONFIRM = 3  # Minimum 3/4 pencere onayi
 DIVERGENCE_MIN_SLOPE = 0.05  # Minimum egim farki (normalize edilmis)
 
 # Sinyal esikleri
-MIN_SCORE = 3  # Minimum 3/7 gosterge onayi
+MIN_SCORE = 4  # Minimum 4/7 gosterge onayi
 MAX_SCORE = 7
 
 # Risk yonetimi
