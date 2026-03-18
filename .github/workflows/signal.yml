@@ -27,7 +27,26 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Restore signals history
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            signals_history.json
+            performance.json
+          key: signals-data-dummy
+          restore-keys: |
+            signals-data-
+
       - name: Run Signal Bot (continuous mode)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: python main.py
+
+      - name: Save signals history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            signals_history.json
+            performance.json
+          key: signals-data-${{ github.run_id }}
