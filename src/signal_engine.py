@@ -29,14 +29,19 @@ def save_signal_history(history: list):
 
 
 def is_duplicate(symbol: str, direction: str, history: list, signal_type: str = "technical") -> bool:
-    """Son belirli sure icinde ayni coin+yon icin sinyal var mi kontrol eder."""
+    """Ayni coin+yon icin acik (sonuclanmamis) sinyal varsa veya zaman penceresi icindeyse True."""
     now = time.time()
     window = MOMENTUM_DUPLICATE_WINDOW if signal_type == "momentum" else DUPLICATE_WINDOW
     for sig in history:
-        if (sig["symbol"] == symbol
-                and sig["direction"] == direction
-                and sig.get("type", "technical") == signal_type
-                and now - sig["timestamp"] < window):
+        if sig["symbol"] != symbol or sig["direction"] != direction:
+            continue
+        if sig.get("type", "technical") != signal_type:
+            continue
+        # Acik islem varsa (henuz TP/SL/expired olmamis) -> kesinlikle duplicate
+        if not sig.get("result"):
+            return True
+        # Sonuclanmis ama zaman penceresi icindeyse -> duplicate
+        if now - sig["timestamp"] < window:
             return True
     return False
 
