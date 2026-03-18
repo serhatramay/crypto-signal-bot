@@ -28,7 +28,7 @@ def fetch_momentum_data(exchange, symbol: str) -> pd.DataFrame:
 
 
 def check_btc_macro(exchange) -> str:
-    """BTC 1h trendini kontrol eder. 'bullish', 'bearish' veya 'neutral' doner."""
+    """BTC trendini kontrol eder. EMA + anlik momentum birlikte degerlendirilir."""
     try:
         df = fetch_ohlcv(exchange, "BTC/USDT", "1h", limit=50)
         ema9 = ta.trend.EMAIndicator(close=df["close"], window=EMA_FAST).ema_indicator().iloc[-1]
@@ -36,10 +36,44 @@ def check_btc_macro(exchange) -> str:
 
         gap_pct = ((ema9 - ema21) / ema21) * 100
 
-        if gap_pct > 0.1:
-            return "bullish"
-        elif gap_pct < -0.1:
+        # Anlik momentum: son 2 saatteki fiyat degisimi
+        price_now = df["close"].iloc[-1]
+        price_2h = df["close"].iloc[-3] if len(df) >= 3 else df["close"].iloc[0]
+        momentum_pct = ((price_now - price_2h) / price_2h) * 100
+
+        # Son 4 saatteki fiyat degisimi (daha genis pencere)
+        price_4h = df["close"].iloc[-5] if len(df) >= 5 else df["close"].iloc[0]
+        momentum_4h = ((price_now - price_4h) / price_4h) * 100
+
+        # Karar: EMA trendi VEYA guclu momentum yeterli
+        bearish_signals = 0
+        bullish_signals = 0
+
+        if gap_pct < -0.1:
+            bearish_signals += 1
+        elif gap_pct > 0.1:
+            bullish_signals += 1
+
+        if momentum_pct < -0.5:
+            bearish_signals += 1
+        elif momentum_pct > 0.5:
+            bullish_signals += 1
+
+        if momentum_4h < -1.0:
+            bearish_signals += 1
+        elif momentum_4h > 1.0:
+            bullish_signals += 1
+
+        print(f"    EMA gap: {gap_pct:+.3f}% | 2h mom: {momentum_pct:+.2f}% | 4h mom: {momentum_4h:+.2f}%")
+
+        if bearish_signals >= 2:
             return "bearish"
+        elif bullish_signals >= 2:
+            return "bullish"
+        elif momentum_pct < -0.8 or momentum_4h < -1.5:
+            return "bearish"  # Guclu anlik dusus tek basina yeterli
+        elif momentum_pct > 0.8 or momentum_4h > 1.5:
+            return "bullish"  # Guclu anlik yukselis tek basina yeterli
         else:
             return "neutral"
     except Exception as e:
