@@ -69,7 +69,7 @@ DIVERGENCE_MIN_CONFIRM = 3  # Minimum 3/4 pencere onayi
 DIVERGENCE_MIN_SLOPE = 0.05  # Minimum egim farki (normalize edilmis)
 
 # Sinyal esikleri
-MIN_SCORE = 3  # Minimum 3/7 gosterge onayi
+MIN_SCORE = 4  # Minimum 4/7 gosterge onayi
 MAX_SCORE = 7
 
 # Risk yonetimi
