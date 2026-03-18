@@ -186,6 +186,7 @@ def send_signal(signal: dict) -> bool:
 
 def format_signal_result(signal: dict, result: str, current_price: float) -> str:
     """Sinyal sonuc mesajini formatlar (TP/SL hit veya expired)."""
+    import time as _time
     symbol = signal["symbol"]
     direction = signal["direction"]
     entry = signal["entry_price"]
@@ -199,6 +200,16 @@ def format_signal_result(signal: dict, result: str, current_price: float) -> str
         pnl_pct = ((current_price - entry) / entry) * 100
     else:
         pnl_pct = ((entry - current_price) / entry) * 100
+
+    # Sinyal acilmasindan bu yana gecen sure
+    elapsed_sec = _time.time() - signal.get("timestamp", _time.time())
+    elapsed_min = int(elapsed_sec // 60)
+    if elapsed_min < 60:
+        duration_text = f"{elapsed_min} dk"
+    else:
+        hours = elapsed_min // 60
+        mins = elapsed_min % 60
+        duration_text = f"{hours}sa {mins}dk"
 
     if result == "tp_hit":
         emoji = "\u2705"
@@ -219,6 +230,7 @@ def format_signal_result(signal: dict, result: str, current_price: float) -> str
         f"\U0001f4cd {direction} | Giris: ${entry_fmt}\n"
         f"\U0001f4b0 Cikis: ${current_fmt} ({pnl_sign}{pnl_pct:.2f}%)\n"
         f"\U0001f3af TP: ${_format_price(tp)} | \U0001f6d1 SL: ${_format_price(sl)}\n"
+        f"\u23f1 S\u00fcre: {duration_text}\n"
         f"\n"
         f"\U0001f916 Crypto Signal Bot"
     )
